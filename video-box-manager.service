@@ -1,0 +1,14 @@
+[Unit]
+Description=Video Box Manager
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/video-box-manager
+ExecStart=/opt/video-box-manager/.venv/bin/python /opt/video-box-manager/run.py
+Restart=always
+RestartSec=2
+User=root
+
+[Install]
+WantedBy=multi-user.target

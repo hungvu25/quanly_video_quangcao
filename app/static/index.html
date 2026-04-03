@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Video Box Manager</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <h1>Video Box Manager</h1>
+      <p>Quan ly playlist quang cao tren box trong LAN</p>
+    </header>
+
+    <section class="panel">
+      <h2>Thu vien video</h2>
+      <div class="scan-row">
+        <input id="scanDir" type="text" placeholder="/root/videos" />
+        <button id="btnScan">Quet thu muc</button>
+      </div>
+      <div id="videoList" class="list"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Playlist</h2>
+      <div class="controls-row">
+        <button id="btnStart">Start</button>
+        <button id="btnPause">Pause/Resume</button>
+        <button id="btnNext">Next</button>
+        <button id="btnStop" class="danger">Stop</button>
+      </div>
+      <div id="statusBox" class="status"></div>
+      <div id="playlistList" class="list"></div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

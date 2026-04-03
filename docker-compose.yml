@@ -1,0 +1,19 @@
+services:
+  video-box-manager:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: video-box-manager
+    restart: unless-stopped
+    environment:
+      VIDEO_BOX_DB_PATH: /data/app.db
+      DISPLAY: ${DISPLAY:-:0}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+      - ./videos:/videos
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    devices:
+      - /dev/dri:/dev/dri
+    network_mode: bridge
