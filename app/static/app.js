@@ -1,6 +1,11 @@
 async function api(path, options = {}) {
+  const headers = { ...(options.headers || {}) };
+  if (!(options.body instanceof FormData) && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
+  }
+
   const res = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
+    headers,
     ...options,
   });
 
@@ -22,6 +27,11 @@ const videoListEl = document.getElementById("videoList");
 const playlistListEl = document.getElementById("playlistList");
 const statusBoxEl = document.getElementById("statusBox");
 const scanDirEl = document.getElementById("scanDir");
+const browseDirEl = document.getElementById("browseDir");
+const dirListEl = document.getElementById("dirList");
+const uploadFileEl = document.getElementById("uploadFile");
+
+let currentBrowsePath = "/videos";
 
 async function renderVideos() {
   const data = await api("/api/videos");
@@ -89,6 +99,53 @@ async function renderStatus() {
     <div><strong>Trang thai:</strong> ${status}</div>
     <div><strong>Dang phat item:</strong> ${state.current_playlist_item_id || "none"}</div>
     <div><strong>Loi:</strong> ${error || "none"}</div>
+  `;
+}
+
+async function renderDirectory(path = currentBrowsePath) {
+  const data = await api(`/api/files/list?path=${encodeURIComponent(path)}`);
+  currentBrowsePath = data.current_path;
+  browseDirEl.value = currentBrowsePath;
+
+  const entries = data.entries || [];
+  const parentButton = data.parent_path
+    ? `<button data-action="open-dir" data-path="${data.parent_path}">.. (thu muc cha)</button>`
+    : "";
+
+  if (!entries.length) {
+    dirListEl.innerHTML = `${parentButton}<div class="item">Thu muc trong</div>`;
+    return;
+  }
+
+  dirListEl.innerHTML = `
+    ${parentButton}
+    ${entries
+      .map((entry) => {
+        if (entry.type === "dir") {
+          return `
+            <div class="item">
+              <div class="meta">
+                <div class="name">[DIR] ${entry.name}</div>
+                <div class="path">${entry.path}</div>
+              </div>
+              <div class="actions">
+                <button data-action="open-dir" data-path="${entry.path}">Mo</button>
+                <button data-action="set-scan-dir" data-path="${entry.path}">Dat lam thu muc quet</button>
+              </div>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="item">
+            <div class="meta">
+              <div class="name">${entry.name}</div>
+              <div class="path">${entry.path}</div>
+            </div>
+          </div>
+        `;
+      })
+      .join("")}
   `;
 }
 
@@ -187,6 +244,67 @@ document.getElementById("btnScan").addEventListener("click", async () => {
   }
 });
 
+document.getElementById("btnBrowse").addEventListener("click", async () => {
+  const path = browseDirEl.value.trim() || "/videos";
+  try {
+    await renderDirectory(path);
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+dirListEl.addEventListener("click", async (event) => {
+  const btn = event.target.closest("button");
+  if (!btn) {
+    return;
+  }
+
+  const action = btn.dataset.action;
+  const path = btn.dataset.path;
+  if (!path) {
+    return;
+  }
+
+  try {
+    if (action === "open-dir") {
+      await renderDirectory(path);
+      return;
+    }
+
+    if (action === "set-scan-dir") {
+      scanDirEl.value = path;
+      browseDirEl.value = path;
+      currentBrowsePath = path;
+    }
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+document.getElementById("btnUpload").addEventListener("click", async () => {
+  const file = uploadFileEl.files && uploadFileEl.files[0];
+  if (!file) {
+    alert("Chon file video de upload");
+    return;
+  }
+
+  const form = new FormData();
+  form.append("file", file);
+  form.append("target_dir", currentBrowsePath || "/videos");
+
+  try {
+    await api("/api/videos/upload", {
+      method: "POST",
+      body: form,
+    });
+    uploadFileEl.value = "";
+    await Promise.all([renderVideos(), renderDirectory(currentBrowsePath)]);
+    alert("Upload thanh cong");
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
 async function control(path) {
   try {
     await api(path, { method: "POST" });
@@ -203,7 +321,12 @@ document.getElementById("btnStop").addEventListener("click", () => control("/api
 
 async function refreshAll() {
   try {
-    await Promise.all([renderVideos(), renderPlaylist(), renderStatus()]);
+    await Promise.all([
+      renderVideos(),
+      renderPlaylist(),
+      renderStatus(),
+      renderDirectory(currentBrowsePath),
+    ]);
   } catch (err) {
     statusBoxEl.classList.add("error");
     statusBoxEl.textContent = err.message;

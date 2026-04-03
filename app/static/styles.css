@@ -55,6 +55,13 @@ body {
   flex-wrap: wrap;
 }
 
+.upload-row {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 input,
 button {
   border-radius: 10px;
@@ -114,6 +121,7 @@ button.danger {
 .item .actions {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .status {

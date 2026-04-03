@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from datetime import datetime
+import os
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -10,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from . import db
 from .player import MPVPlayer
-from .scanner import scan_video_files
+from .scanner import VIDEO_EXTENSIONS, scan_video_files
 
 app = FastAPI(title="Video Box Manager", version="0.1.0")
 
@@ -61,6 +63,43 @@ def get_videos() -> dict[str, list[dict]]:
     return {"items": db.list_videos()}
 
 
+@app.get("/api/files/list")
+def list_box_directory(path: str = Query(default="/videos")) -> dict[str, object]:
+    target = Path(path).expanduser().resolve()
+    if not target.exists():
+        raise HTTPException(status_code=404, detail=f"Path not found: {target}")
+    if not target.is_dir():
+        raise HTTPException(status_code=400, detail=f"Not a directory: {target}")
+
+    entries: list[dict[str, object]] = []
+    try:
+        with os.scandir(target) as iterator:
+            for entry in iterator:
+                try:
+                    stat = entry.stat(follow_symlinks=False)
+                    entries.append(
+                        {
+                            "name": entry.name,
+                            "path": str(Path(entry.path).resolve()),
+                            "type": "dir" if entry.is_dir(follow_symlinks=False) else "file",
+                            "size": stat.st_size,
+                            "modified_at": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                        }
+                    )
+                except PermissionError:
+                    continue
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=f"Permission denied: {target}") from exc
+
+    entries.sort(key=lambda item: (item["type"] != "dir", str(item["name"]).lower()))
+    parent_path = str(target.parent) if target.parent != target else None
+    return {
+        "current_path": str(target),
+        "parent_path": parent_path,
+        "entries": entries,
+    }
+
+
 @app.delete("/api/videos/{video_id}")
 def delete_video(video_id: int) -> dict[str, str]:
     db.delete_video(video_id)
@@ -81,6 +120,40 @@ def scan_videos(payload: ScanRequest) -> dict[str, int]:
 
     db.set_setting("video_root", payload.directory)
     return {"imported": imported}
+
+
+@app.post("/api/videos/upload")
+async def upload_video(
+    file: UploadFile = File(...),
+    target_dir: str = Form("/videos"),
+) -> dict[str, object]:
+    destination_dir = Path(target_dir).expanduser().resolve()
+    destination_dir.mkdir(parents=True, exist_ok=True)
+    if not destination_dir.is_dir():
+        raise HTTPException(status_code=400, detail=f"Not a directory: {destination_dir}")
+
+    source_name = Path(file.filename or "").name
+    if not source_name:
+        raise HTTPException(status_code=400, detail="Missing filename")
+
+    ext = Path(source_name).suffix.lower()
+    if ext not in VIDEO_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported extension: {ext or 'unknown'}",
+        )
+
+    destination_path = destination_dir / source_name
+    data = await file.read()
+    destination_path.write_bytes(data)
+
+    video_id = db.upsert_video(name=destination_path.name, path=str(destination_path))
+    return {
+        "message": "uploaded",
+        "video_id": video_id,
+        "path": str(destination_path),
+        "size": len(data),
+    }
 
 
 @app.get("/api/playlist")

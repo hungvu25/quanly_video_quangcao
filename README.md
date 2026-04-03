@@ -4,6 +4,8 @@ Ung dung web nhe de quan ly playlist video local va dieu khien phat loop tren bo
 
 ## Tinh nang MVP
 - Quet video tu thu muc local tren box (mp4/mkv/mov/avi/webm/m4v)
+- Duyet danh sach thu muc/file tren box ngay trong giao dien web
+- Upload video tu may dang mo trinh duyet vao thu muc tren box
 - Quan ly thu vien video
 - Tao va sap xep playlist
 - Dieu khien player: Start, Pause/Resume, Next, Stop
@@ -73,6 +75,12 @@ docker compose up -d --build
 
 4. Khi quet video trong UI, nhap thu muc:
 - /videos
+
+Upload video tu may tinh:
+1. Mo panel `Thu muc tren box va Upload`
+2. Nhap duong dan (vi du `/videos`) va bam `Mo thu muc`
+3. Chon file video tren may va bam `Upload vao thu muc dang mo`
+4. Sang panel `Thu vien video` bam `Quet thu muc` de dong bo nhanh neu can
 
 5. Xem log:
 
