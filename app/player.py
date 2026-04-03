@@ -113,6 +113,9 @@ class MPVPlayer:
                 "--force-window=yes",
                 "--no-terminal",
                 "--really-quiet",
+                "--gapless-audio=no",
+                "--audio-exclusive=no",
+                "--ao=alsa",
                 "--loop-playlist=inf",
             ]
             cmd.extend(str(item["path"]) for item in ordered_items)
