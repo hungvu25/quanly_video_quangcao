@@ -6,7 +6,7 @@ import threading
 import time
 from typing import Any
 
-from . import db
+from .state import state
 
 
 class MPVPlayer:
@@ -23,9 +23,9 @@ class MPVPlayer:
             if self._thread and self._thread.is_alive():
                 return
 
-            playlist = db.list_playlist()
+            playlist = state.list_playlist()
             if not playlist:
-                db.set_playback_state(
+                state.set_playback_state(
                     is_playing=False,
                     is_paused=False,
                     status="error",
@@ -35,7 +35,7 @@ class MPVPlayer:
 
             self._stop_event.clear()
             self._next_event.clear()
-            db.clear_error()
+            state.clear_error()
             self._thread = threading.Thread(target=self._play_loop, daemon=True)
             self._thread.start()
 
@@ -43,7 +43,7 @@ class MPVPlayer:
         self._stop_event.set()
         self._next_event.clear()
         self._terminate_current_process()
-        db.set_playback_state(
+        state.set_playback_state(
             is_playing=False,
             is_paused=False,
             status="stopped",
@@ -56,44 +56,44 @@ class MPVPlayer:
 
     def pause_toggle(self) -> None:
         with self._lock:
-            state = db.get_playback_state()
-            if not self._proc or not state.get("is_playing"):
+            playback_state = state.get_playback_state()
+            if not self._proc or not playback_state.get("is_playing"):
                 return
 
-            paused = bool(state.get("is_paused"))
+            paused = bool(playback_state.get("is_paused"))
             try:
                 if paused:
                     self._proc.send_signal(signal.SIGCONT)
-                    db.set_playback_state(
+                    state.set_playback_state(
                         is_playing=True,
                         is_paused=False,
                         status="playing",
-                        current_playlist_item_id=state.get("current_playlist_item_id"),
+                        current_playlist_item_id=playback_state.get("current_playlist_item_id"),
                         error_message=None,
                     )
                 else:
                     self._proc.send_signal(signal.SIGSTOP)
-                    db.set_playback_state(
+                    state.set_playback_state(
                         is_playing=True,
                         is_paused=True,
                         status="paused",
-                        current_playlist_item_id=state.get("current_playlist_item_id"),
+                        current_playlist_item_id=playback_state.get("current_playlist_item_id"),
                         error_message=None,
                     )
             except Exception as exc:
-                db.set_playback_state(
+                state.set_playback_state(
                     is_playing=False,
                     is_paused=False,
                     status="error",
-                    current_playlist_item_id=state.get("current_playlist_item_id"),
+                    current_playlist_item_id=playback_state.get("current_playlist_item_id"),
                     error_message=f"Pause/resume failed: {exc}",
                 )
 
     def _play_loop(self) -> None:
         while not self._stop_event.is_set():
-            playlist = db.list_playlist()
+            playlist = state.list_playlist()
             if not playlist:
-                db.set_playback_state(
+                state.set_playback_state(
                     is_playing=False,
                     is_paused=False,
                     status="error",
@@ -117,7 +117,7 @@ class MPVPlayer:
             try:
                 self._proc = subprocess.Popen(cmd, text=True)
             except Exception as exc:
-                db.set_playback_state(
+                state.set_playback_state(
                     is_playing=False,
                     is_paused=False,
                     status="error",
@@ -126,7 +126,7 @@ class MPVPlayer:
                 )
                 return
 
-            db.set_playback_state(
+            state.set_playback_state(
                 is_playing=True,
                 is_paused=False,
                 status="playing",
@@ -151,7 +151,7 @@ class MPVPlayer:
             return_code = self._proc.returncode if self._proc else 1
             self._proc = None
             if return_code != 0:
-                db.set_playback_state(
+                state.set_playback_state(
                     is_playing=False,
                     is_paused=False,
                     status="error",
@@ -176,4 +176,4 @@ class MPVPlayer:
                 self._proc = None
 
     def status(self) -> dict[str, Any]:
-        return db.get_playback_state()
+        return state.get_playback_state()

@@ -57,38 +57,9 @@ sudo systemctl start video-box-manager
 sudo systemctl status video-box-manager
 ```
 
-## Chay bang Docker
-1. Tao thu muc du lieu:
-
-```bash
-mkdir -p data videos
-```
-
-2. Build va chay:
-
-```bash
-docker compose up -d --build
-```
-
-3. Truy cap giao dien:
-- http://IP_BOX:8080
-
-4. Khi quet video trong UI, nhap thu muc:
-- /videos
-
-Upload video tu may tinh:
-1. Mo panel `Thu muc tren box va Upload`
-2. Nhap duong dan (vi du `/videos`) va bam `Mo thu muc`
-3. Chon file video tren may va bam `Upload vao thu muc dang mo`
-4. Sang panel `Thu vien video` bam `Quet thu muc` de dong bo nhanh neu can
-
-5. Xem log:
-
-```bash
-docker compose logs -f
-```
+Sau khi app chay, vao giao dien web va su dung:
+1. Panel `Thu muc tren box va Upload` de mo folder va upload video tu may tinh vao box.
+2. Panel `Thu vien video` de quet folder (vi du `/videos`) va cap nhat danh sach video hien tai.
 
 Luu y:
-- `data/app.db` la database duoc luu ben ngoai container.
-- `videos/` la thu muc ban mount de app quet video local.
-- Neu box dung X11 de hien thi video, compose da mount `/tmp/.X11-unix` va `/dev/dri`.
+- App khong luu thu vien/playlist vao DB, danh sach video doc truc tiep tu thu muc tren box.

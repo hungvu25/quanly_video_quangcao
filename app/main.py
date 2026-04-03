@@ -10,9 +10,9 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import db
 from .player import MPVPlayer
 from .scanner import VIDEO_EXTENSIONS, scan_video_files
+from .state import state
 
 app = FastAPI(title="Video Box Manager", version="0.1.0")
 
@@ -42,7 +42,10 @@ class ReorderPlaylistRequest(BaseModel):
 
 @app.on_event("startup")
 def on_startup() -> None:
-    db.init_db()
+    try:
+        state.refresh_videos(state.get_scan_dir())
+    except ValueError:
+        pass
 
 
 @app.get("/")
@@ -60,7 +63,7 @@ def health() -> dict[str, str]:
 
 @app.get("/api/videos")
 def get_videos() -> dict[str, list[dict]]:
-    return {"items": db.list_videos()}
+    return {"items": state.list_videos()}
 
 
 @app.get("/api/files/list")
@@ -102,7 +105,7 @@ def list_box_directory(path: str = Query(default="/videos")) -> dict[str, object
 
 @app.delete("/api/videos/{video_id}")
 def delete_video(video_id: int) -> dict[str, str]:
-    db.delete_video(video_id)
+    state.delete_video(video_id)
     return {"message": "deleted"}
 
 
@@ -113,13 +116,9 @@ def scan_videos(payload: ScanRequest) -> dict[str, int]:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    imported = 0
-    for path in files:
-        db.upsert_video(name=path.name, path=str(path))
-        imported += 1
-
-    db.set_setting("video_root", payload.directory)
-    return {"imported": imported}
+    state.set_scan_dir(payload.directory)
+    state.refresh_videos(payload.directory)
+    return {"imported": len(files)}
 
 
 @app.post("/api/videos/upload")
@@ -146,8 +145,10 @@ async def upload_video(
     destination_path = destination_dir / source_name
     data = await file.read()
     destination_path.write_bytes(data)
-
-    video_id = db.upsert_video(name=destination_path.name, path=str(destination_path))
+    state.set_scan_dir(str(destination_dir))
+    videos = state.refresh_videos(str(destination_dir))
+    uploaded = next((v for v in videos if v["path"] == str(destination_path)), None)
+    video_id = int(uploaded["id"]) if uploaded else None
     return {
         "message": "uploaded",
         "video_id": video_id,
@@ -158,24 +159,27 @@ async def upload_video(
 
 @app.get("/api/playlist")
 def get_playlist() -> dict[str, list[dict]]:
-    return {"items": db.list_playlist()}
+    return {"items": state.list_playlist()}
 
 
 @app.post("/api/playlist/add")
 def add_playlist(payload: AddPlaylistRequest) -> dict[str, int]:
-    item_id = db.add_to_playlist(payload.video_id)
+    try:
+        item_id = state.add_to_playlist(payload.video_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     return {"item_id": item_id}
 
 
 @app.delete("/api/playlist/{item_id}")
 def delete_playlist_item(item_id: int) -> dict[str, str]:
-    db.remove_playlist_item(item_id)
+    state.remove_playlist_item(item_id)
     return {"message": "removed"}
 
 
 @app.post("/api/playlist/reorder")
 def reorder_playlist(payload: ReorderPlaylistRequest) -> dict[str, str]:
-    db.reorder_playlist(payload.ordered_item_ids)
+    state.reorder_playlist(payload.ordered_item_ids)
     return {"message": "reordered"}
 
 

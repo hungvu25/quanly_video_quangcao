@@ -38,7 +38,7 @@ async function renderVideos() {
   const videos = data.items || [];
 
   if (!videos.length) {
-    videoListEl.innerHTML = '<div class="item">Chua co video trong thu vien</div>';
+    videoListEl.innerHTML = '<div class="item">Chưa có video trong thư viện</div>';
     return;
   }
 
@@ -51,8 +51,8 @@ async function renderVideos() {
             <div class="path">${video.path}</div>
           </div>
           <div class="actions">
-            <button data-action="add" data-id="${video.id}">Them vao playlist</button>
-            <button data-action="delete-video" data-id="${video.id}">Xoa</button>
+            <button data-action="add" data-id="${video.id}">Thêm vào playlist</button>
+            <button data-action="delete-video" data-id="${video.id}">Xóa</button>
           </div>
         </div>
       `
@@ -65,7 +65,7 @@ async function renderPlaylist() {
   const items = data.items || [];
 
   if (!items.length) {
-    playlistListEl.innerHTML = '<div class="item">Playlist dang trong</div>';
+    playlistListEl.innerHTML = '<div class="item">Playlist đang trống</div>';
     return;
   }
 
@@ -78,9 +78,9 @@ async function renderPlaylist() {
             <div class="path">${item.path}</div>
           </div>
           <div class="actions">
-            <button data-action="up" data-id="${item.id}">Len</button>
-            <button data-action="down" data-id="${item.id}">Xuong</button>
-            <button data-action="remove-item" data-id="${item.id}">Bo</button>
+            <button data-action="up" data-id="${item.id}">Lên</button>
+            <button data-action="down" data-id="${item.id}">Xuống</button>
+            <button data-action="remove-item" data-id="${item.id}">Bỏ</button>
           </div>
         </div>
       `
@@ -96,9 +96,9 @@ async function renderStatus() {
 
   statusBoxEl.classList.toggle("error", Boolean(error));
   statusBoxEl.innerHTML = `
-    <div><strong>Trang thai:</strong> ${status}</div>
-    <div><strong>Dang phat item:</strong> ${state.current_playlist_item_id || "none"}</div>
-    <div><strong>Loi:</strong> ${error || "none"}</div>
+    <div><strong>Trạng thái:</strong> ${status}</div>
+    <div><strong>Đang phát mục:</strong> ${state.current_playlist_item_id || "không có"}</div>
+    <div><strong>Lỗi:</strong> ${error || "không có"}</div>
   `;
 }
 
@@ -109,11 +109,11 @@ async function renderDirectory(path = currentBrowsePath) {
 
   const entries = data.entries || [];
   const parentButton = data.parent_path
-    ? `<button data-action="open-dir" data-path="${data.parent_path}">.. (thu muc cha)</button>`
+    ? `<button data-action="open-dir" data-path="${data.parent_path}">.. (thư mục cha)</button>`
     : "";
 
   if (!entries.length) {
-    dirListEl.innerHTML = `${parentButton}<div class="item">Thu muc trong</div>`;
+    dirListEl.innerHTML = `${parentButton}<div class="item">Thư mục trống</div>`;
     return;
   }
 
@@ -129,8 +129,8 @@ async function renderDirectory(path = currentBrowsePath) {
                 <div class="path">${entry.path}</div>
               </div>
               <div class="actions">
-                <button data-action="open-dir" data-path="${entry.path}">Mo</button>
-                <button data-action="set-scan-dir" data-path="${entry.path}">Dat lam thu muc quet</button>
+                <button data-action="open-dir" data-path="${entry.path}">Mở</button>
+                <button data-action="set-scan-dir" data-path="${entry.path}">Đặt làm thư mục quét</button>
               </div>
             </div>
           `;
@@ -228,7 +228,7 @@ playlistListEl.addEventListener("click", async (event) => {
 document.getElementById("btnScan").addEventListener("click", async () => {
   const directory = scanDirEl.value.trim();
   if (!directory) {
-    alert("Nhap duong dan thu muc video");
+    alert("Nhập đường dẫn thư mục video");
     return;
   }
 
@@ -238,7 +238,7 @@ document.getElementById("btnScan").addEventListener("click", async () => {
       body: JSON.stringify({ directory }),
     });
     await renderVideos();
-    alert(`Da quet ${result.imported} file`);
+    alert(`Đã quét ${result.imported} file`);
   } catch (err) {
     alert(err.message);
   }
@@ -284,7 +284,7 @@ dirListEl.addEventListener("click", async (event) => {
 document.getElementById("btnUpload").addEventListener("click", async () => {
   const file = uploadFileEl.files && uploadFileEl.files[0];
   if (!file) {
-    alert("Chon file video de upload");
+    alert("Chọn file video để upload");
     return;
   }
 
@@ -299,7 +299,7 @@ document.getElementById("btnUpload").addEventListener("click", async () => {
     });
     uploadFileEl.value = "";
     await Promise.all([renderVideos(), renderDirectory(currentBrowsePath)]);
-    alert("Upload thanh cong");
+    alert("Upload thành công");
   } catch (err) {
     alert(err.message);
   }
