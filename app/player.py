@@ -104,33 +104,38 @@ class MPVPlayer:
             if self._current_index >= len(playlist):
                 self._current_index = 0
 
-            item = playlist[self._current_index]
+            # Keep one mpv process alive with a looped playlist to minimize
+            # startup gaps between items and at cycle boundaries.
+            ordered_items = playlist[self._current_index :] + playlist[: self._current_index]
             cmd = [
                 "mpv",
                 "--fs",
                 "--force-window=yes",
                 "--no-terminal",
                 "--really-quiet",
-                item["path"],
+                "--loop-playlist=inf",
             ]
+            cmd.extend(str(item["path"]) for item in ordered_items)
 
             try:
                 self._proc = subprocess.Popen(cmd, text=True)
             except Exception as exc:
+                first_item_id = int(ordered_items[0]["id"]) if ordered_items else None
                 state.set_playback_state(
                     is_playing=False,
                     is_paused=False,
                     status="error",
-                    current_playlist_item_id=item["id"],
+                    current_playlist_item_id=first_item_id,
                     error_message=f"Cannot start mpv: {exc}",
                 )
                 return
 
+            first_item_id = int(ordered_items[0]["id"]) if ordered_items else None
             state.set_playback_state(
                 is_playing=True,
                 is_paused=False,
                 status="playing",
-                current_playlist_item_id=item["id"],
+                current_playlist_item_id=first_item_id,
                 error_message=None,
             )
 
@@ -155,12 +160,14 @@ class MPVPlayer:
                     is_playing=False,
                     is_paused=False,
                     status="error",
-                    current_playlist_item_id=item["id"],
+                    current_playlist_item_id=first_item_id,
                     error_message=f"Playback failed with exit code {return_code}",
                 )
                 return
 
-            self._current_index = (self._current_index + 1) % len(playlist)
+            # mpv should not normally exit while loop-playlist=inf is set.
+            # Restart from current pointer if it exits unexpectedly.
+            time.sleep(0.2)
 
     def _terminate_current_process(self) -> None:
         with self._lock:
