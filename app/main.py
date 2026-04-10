@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,8 +37,17 @@ class AddPlaylistRequest(BaseModel):
     video_id: int
 
 
+class AddUrlPlaylistRequest(BaseModel):
+    url: str
+    title: str | None = None
+
+
 class ReorderPlaylistRequest(BaseModel):
     ordered_item_ids: list[int] = Field(min_items=1)
+
+
+class OrientationRequest(BaseModel):
+    mode: str = Field(pattern="^(landscape|portrait-right|portrait-left)$")
 
 
 @app.on_event("startup")
@@ -171,6 +181,34 @@ def add_playlist(payload: AddPlaylistRequest) -> dict[str, int]:
     return {"item_id": item_id}
 
 
+@app.post("/api/playlist/add-url")
+def add_url_playlist(payload: AddUrlPlaylistRequest) -> dict[str, int]:
+    url = payload.url.strip()
+    if not (url.startswith("http://") or url.startswith("https://")):
+        raise HTTPException(status_code=400, detail="URL phải bắt đầu bằng http:// hoặc https://")
+
+    item_id = state.add_url_to_playlist(url=url, title=payload.title)
+    return {"item_id": item_id}
+
+
+@app.post("/api/playlist/add-youtube")
+def add_youtube_playlist(payload: AddUrlPlaylistRequest) -> dict[str, int]:
+    url = payload.url.strip()
+    if not (url.startswith("http://") or url.startswith("https://")):
+        raise HTTPException(status_code=400, detail="URL phải bắt đầu bằng http:// hoặc https://")
+
+    hostname = (urlparse(url).hostname or "").lower()
+    if hostname.startswith("www."):
+        hostname = hostname[4:]
+
+    allowed = {"youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be"}
+    if hostname not in allowed:
+        raise HTTPException(status_code=400, detail="Chỉ chấp nhận link YouTube")
+
+    item_id = state.add_url_to_playlist(url=url, title=payload.title or f"YouTube: {url}")
+    return {"item_id": item_id}
+
+
 @app.delete("/api/playlist/{item_id}")
 def delete_playlist_item(item_id: int) -> dict[str, str]:
     state.remove_playlist_item(item_id)
@@ -207,6 +245,37 @@ def pause_player() -> dict[str, str]:
     return {"message": "toggled"}
 
 
+@app.get("/api/player/orientation")
+def get_orientation() -> dict[str, object]:
+    rotation = state.get_video_rotation()
+    mode = "landscape"
+    if rotation == 90:
+        mode = "portrait-right"
+    if rotation == 270:
+        mode = "portrait-left"
+    return {"mode": mode, "rotation": rotation}
+
+
+@app.post("/api/player/orientation")
+def set_orientation(payload: OrientationRequest) -> dict[str, object]:
+    mapping = {
+        "landscape": 0,
+        "portrait-right": 90,
+        "portrait-left": 270,
+    }
+    rotation = mapping[payload.mode]
+    state.set_video_rotation(rotation)
+
+    playback = state.get_playback_state()
+    if playback.get("is_playing"):
+        player.restart_current_playlist(reset_index=False)
+
+    return {"message": "updated", "mode": payload.mode, "rotation": rotation}
+
+
 @app.get("/api/player/status")
-def status_player() -> dict[str, dict]:
-    return {"state": player.status()}
+def status_player() -> dict[str, object]:
+    return {
+        "state": player.status(),
+        "rotation": state.get_video_rotation(),
+    }

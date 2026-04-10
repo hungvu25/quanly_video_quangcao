@@ -13,39 +13,56 @@
       <p>Quản lý playlist quảng cáo trên box trong LAN</p>
     </header>
 
-    <section class="panel">
-      <h2>Thư viện video</h2>
-      <div class="scan-row">
-        <input id="scanDir" type="text" placeholder="/videos" />
-        <button id="btnScan">Quét thư mục</button>
-      </div>
-      <div id="videoList" class="list"></div>
-    </section>
+    <div class="workspace-grid">
+      <section class="panel panel-control">
+        <h2>Điều khiển phát</h2>
+        <div class="scan-row">
+          <input id="youtubeUrl" type="text" placeholder="Dán link YouTube (https://...)" />
+          <button id="btnAddYoutube">Thêm YouTube vào playlist</button>
+        </div>
+        <div class="controls-row">
+          <button id="btnStart">Bắt đầu</button>
+          <button id="btnPause">Tạm dừng/Tiếp tục</button>
+          <button id="btnNext">Kế tiếp</button>
+          <button id="btnStop" class="danger">Dừng</button>
+        </div>
+        <div class="controls-row">
+          <select id="orientationMode">
+            <option value="landscape">Màn hình ngang</option>
+            <option value="portrait-right">Màn hình dọc (xoay phải)</option>
+            <option value="portrait-left">Màn hình dọc (xoay trái)</option>
+          </select>
+          <button id="btnApplyOrientation">Áp dụng xoay màn hình</button>
+        </div>
+        <div id="statusBox" class="status"></div>
+        <h3 class="sub-heading">Playlist hiện tại</h3>
+        <div id="playlistList" class="list"></div>
+      </section>
 
-    <section class="panel">
-      <h2>Thư mục trên box và Upload</h2>
-      <div class="scan-row">
-        <input id="browseDir" type="text" placeholder="/videos" />
-        <button id="btnBrowse">Mở thư mục</button>
-      </div>
-      <div id="dirList" class="list"></div>
-      <div class="upload-row">
-        <input id="uploadFile" type="file" accept="video/*" />
-        <button id="btnUpload">Upload vào thư mục đang mở</button>
-      </div>
-    </section>
+      <div class="panel-stack">
+        <section class="panel">
+          <h2>Thư mục trên box và Upload</h2>
+          <div class="scan-row">
+            <input id="browseDir" type="text" placeholder="/videos" />
+            <button id="btnBrowse">Mở thư mục</button>
+          </div>
+          <div id="dirList" class="list"></div>
+          <div class="upload-row">
+            <input id="uploadFile" type="file" accept="video/*" />
+            <button id="btnUpload">Upload vào thư mục đang mở</button>
+          </div>
+        </section>
 
-    <section class="panel">
-      <h2>Playlist</h2>
-      <div class="controls-row">
-        <button id="btnStart">Start</button>
-        <button id="btnPause">Pause/Resume</button>
-        <button id="btnNext">Next</button>
-        <button id="btnStop" class="danger">Stop</button>
+        <section class="panel">
+          <h2>Thư viện video</h2>
+          <div class="scan-row">
+            <input id="scanDir" type="text" placeholder="/videos" />
+            <button id="btnScan">Quét thư mục</button>
+          </div>
+          <div id="videoList" class="list"></div>
+        </section>
       </div>
-      <div id="statusBox" class="status"></div>
-      <div id="playlistList" class="list"></div>
-    </section>
+    </div>
   </main>
 
   <script src="/static/app.js"></script>

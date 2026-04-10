@@ -4,6 +4,7 @@ Ung dung web nhe de quan ly playlist video local va dieu khien phat loop tren bo
 
 ## Tinh nang MVP
 - Quet video tu thu muc local tren box (mp4/mkv/mov/avi/webm/m4v)
+- Them link YouTube/URL vao playlist va phat truc tiep bang mpv
 - Duyet danh sach thu muc/file tren box ngay trong giao dien web
 - Upload video tu may dang mo trinh duyet vao thu muc tren box
 - Quan ly thu vien video
@@ -14,12 +15,20 @@ Ung dung web nhe de quan ly playlist video local va dieu khien phat loop tren bo
 
 ## Chay nhanh
 1. Cai Python 3.10+ va mpv
+	- Neu can phat YouTube, cai them `yt-dlp`
 2. Tao virtual env va cai thu vien:
 
 ```bash
 python -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
+```
+
+Tren Armbian/Debian:
+
+```bash
+sudo apt update
+sudo apt install -y mpv yt-dlp
 ```
 
 3. Chay app:
@@ -36,6 +45,7 @@ python run.py
 - POST /api/videos/scan
 - GET /api/playlist
 - POST /api/playlist/add
+- POST /api/playlist/add-youtube
 - POST /api/playlist/reorder
 - DELETE /api/playlist/{item_id}
 - POST /api/player/start

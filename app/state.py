@@ -24,6 +24,7 @@ class AppState:
             "error_message": None,
             "updated_at": None,
         }
+        self._video_rotation = 0
 
     def set_scan_dir(self, directory: str) -> None:
         with self._lock:
@@ -60,7 +61,9 @@ class AppState:
 
             self._videos_by_id = new_map
             self._playlist = [
-                item for item in self._playlist if item.get("video_id") in self._videos_by_id
+                item
+                for item in self._playlist
+                if item.get("video_id") is None or item.get("video_id") in self._videos_by_id
             ]
             return list(self._videos_by_id.values())
 
@@ -104,6 +107,24 @@ class AppState:
                     "name": video["name"],
                     "path": video["path"],
                     "enabled": 1,
+                    "source": "local",
+                }
+            )
+            return item_id
+
+    def add_url_to_playlist(self, url: str, title: str | None = None) -> int:
+        with self._lock:
+            item_id = self._playlist_item_id_counter
+            self._playlist_item_id_counter += 1
+            self._playlist.append(
+                {
+                    "id": item_id,
+                    "video_id": None,
+                    "position": len(self._playlist) + 1,
+                    "name": title or url,
+                    "path": url,
+                    "enabled": 1,
+                    "source": "url",
                 }
             )
             return item_id
@@ -166,6 +187,16 @@ class AppState:
     def clear_error(self) -> None:
         with self._lock:
             self._playback_state["error_message"] = None
+
+    def get_video_rotation(self) -> int:
+        with self._lock:
+            return int(self._video_rotation)
+
+    def set_video_rotation(self, rotation: int) -> None:
+        if rotation not in (0, 90, 270):
+            raise ValueError("Rotation must be one of: 0, 90, 270")
+        with self._lock:
+            self._video_rotation = int(rotation)
 
 
 state = AppState()

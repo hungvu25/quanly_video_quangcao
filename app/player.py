@@ -14,15 +14,14 @@ class MPVPlayer:
         self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
         self._next_event = threading.Event()
+        self._restart_event = threading.Event()
         self._lock = threading.Lock()
         self._proc: subprocess.Popen[str] | None = None
         self._current_index = 0
 
     def start(self) -> None:
+        should_restart = False
         with self._lock:
-            if self._thread and self._thread.is_alive():
-                return
-
             playlist = state.list_playlist()
             if not playlist:
                 state.set_playback_state(
@@ -35,13 +34,25 @@ class MPVPlayer:
 
             self._stop_event.clear()
             self._next_event.clear()
+            self._restart_event.clear()
             state.clear_error()
-            self._thread = threading.Thread(target=self._play_loop, daemon=True)
-            self._thread.start()
+
+            if self._thread and self._thread.is_alive():
+                # Let any client take control: restart playback from current playlist.
+                self._current_index = 0
+                self._restart_event.set()
+                should_restart = True
+            else:
+                self._thread = threading.Thread(target=self._play_loop, daemon=True)
+                self._thread.start()
+
+        if should_restart:
+            self._terminate_current_process()
 
     def stop(self) -> None:
         self._stop_event.set()
         self._next_event.clear()
+        self._restart_event.clear()
         self._terminate_current_process()
         state.set_playback_state(
             is_playing=False,
@@ -52,7 +63,21 @@ class MPVPlayer:
 
     def next(self) -> None:
         self._next_event.set()
+        self._restart_event.clear()
         self._terminate_current_process()
+
+    def restart_current_playlist(self, *, reset_index: bool = False) -> None:
+        should_restart = False
+        with self._lock:
+            if self._thread and self._thread.is_alive():
+                if reset_index:
+                    self._current_index = 0
+                self._next_event.clear()
+                self._restart_event.set()
+                should_restart = True
+
+        if should_restart:
+            self._terminate_current_process()
 
     def pause_toggle(self) -> None:
         with self._lock:
@@ -116,6 +141,7 @@ class MPVPlayer:
                 "--gapless-audio=no",
                 "--audio-exclusive=no",
                 "--ao=alsa",
+                f"--video-rotate={state.get_video_rotation()}",
                 "--loop-playlist=inf",
             ]
             cmd.extend(str(item["path"]) for item in ordered_items)
@@ -143,13 +169,17 @@ class MPVPlayer:
             )
 
             while self._proc and self._proc.poll() is None:
-                if self._stop_event.is_set() or self._next_event.is_set():
+                if self._stop_event.is_set() or self._next_event.is_set() or self._restart_event.is_set():
                     self._terminate_current_process()
                     break
                 time.sleep(0.2)
 
             if self._stop_event.is_set():
                 return
+
+            if self._restart_event.is_set():
+                self._restart_event.clear()
+                continue
 
             if self._next_event.is_set():
                 self._next_event.clear()

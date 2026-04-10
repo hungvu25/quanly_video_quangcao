@@ -30,6 +30,8 @@ const scanDirEl = document.getElementById("scanDir");
 const browseDirEl = document.getElementById("browseDir");
 const dirListEl = document.getElementById("dirList");
 const uploadFileEl = document.getElementById("uploadFile");
+const orientationModeEl = document.getElementById("orientationMode");
+const youtubeUrlEl = document.getElementById("youtubeUrl");
 
 let currentBrowsePath = "/videos";
 
@@ -74,7 +76,7 @@ async function renderPlaylist() {
       (item, index) => `
         <div class="item">
           <div class="meta">
-            <div class="name">#${index + 1} ${item.name}</div>
+            <div class="name">#${index + 1} ${item.name}${item.source === "url" ? " [YouTube/URL]" : ""}</div>
             <div class="path">${item.path}</div>
           </div>
           <div class="actions">
@@ -93,11 +95,30 @@ async function renderStatus() {
   const state = data.state || {};
   const status = state.status || "idle";
   const error = state.error_message || "";
+  const rotation = Number(data.rotation || 0);
+  let orientationText = "Màn hình ngang";
+  if (rotation === 90) {
+    orientationText = "Màn hình dọc (xoay phải)";
+  }
+  if (rotation === 270) {
+    orientationText = "Màn hình dọc (xoay trái)";
+  }
+
+  if (orientationModeEl) {
+    if (rotation === 90) {
+      orientationModeEl.value = "portrait-right";
+    } else if (rotation === 270) {
+      orientationModeEl.value = "portrait-left";
+    } else {
+      orientationModeEl.value = "landscape";
+    }
+  }
 
   statusBoxEl.classList.toggle("error", Boolean(error));
   statusBoxEl.innerHTML = `
     <div><strong>Trạng thái:</strong> ${status}</div>
     <div><strong>Đang phát mục:</strong> ${state.current_playlist_item_id || "không có"}</div>
+    <div><strong>Chế độ màn hình:</strong> ${orientationText}</div>
     <div><strong>Lỗi:</strong> ${error || "không có"}</div>
   `;
 }
@@ -318,6 +339,39 @@ document.getElementById("btnStart").addEventListener("click", () => control("/ap
 document.getElementById("btnPause").addEventListener("click", () => control("/api/player/pause"));
 document.getElementById("btnNext").addEventListener("click", () => control("/api/player/next"));
 document.getElementById("btnStop").addEventListener("click", () => control("/api/player/stop"));
+
+document.getElementById("btnAddYoutube").addEventListener("click", async () => {
+  const url = (youtubeUrlEl.value || "").trim();
+  if (!url) {
+    alert("Nhập link YouTube trước khi thêm");
+    return;
+  }
+
+  try {
+    await api("/api/playlist/add-youtube", {
+      method: "POST",
+      body: JSON.stringify({ url }),
+    });
+    youtubeUrlEl.value = "";
+    await renderPlaylist();
+    alert("Đã thêm link YouTube vào playlist");
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+document.getElementById("btnApplyOrientation").addEventListener("click", async () => {
+  const mode = orientationModeEl.value;
+  try {
+    await api("/api/player/orientation", {
+      method: "POST",
+      body: JSON.stringify({ mode }),
+    });
+    await renderStatus();
+  } catch (err) {
+    alert(err.message);
+  }
+});
 
 async function refreshAll() {
   try {
